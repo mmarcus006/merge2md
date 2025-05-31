@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .converter import ConversionSettings, DoclingMarkdownConverter
 from .merger import MarkdownMerger
 from .utils import natural_sort
+from .notifier import show_completion_dialog, get_default_output_path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,7 +39,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="One or more files or glob patterns. Supported formats: "
              "PDF, DOCX, PPTX, HTML, CSV, MD, AsciiDoc, images (PNG, JPG, etc.)"
     )
-    ap.add_argument("-o", "--output", default="merged.md", help="Output path")
+    ap.add_argument(
+        "-o", "--output", 
+        default=None, 
+        help="Output path (default: merged.md in Downloads folder)"
+    )
     ap.add_argument("--title", help="Optional H1 title in the merged file")
     ap.add_argument("--threads", type=int, default=4, help="Parallel workers")
     ap.add_argument(
@@ -66,17 +71,36 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover
         LOGGER.error("No files matched.")
         sys.exit(1)
 
-    settings = ConversionSettings(
-        ocr=not args.no_ocr,
-        languages=args.languages or ["en"],
-    )
-    converter = DoclingMarkdownConverter(settings=settings)
-    with ThreadPoolExecutor(max_workers=args.threads) as pool:
-        md_blocks = pool.submit(converter.to_markdown, paths).result()
+    # Determine output path
+    if args.output is None:
+        # Use default filename in Downloads folder
+        output_path = get_default_output_path("merged.md")
+    else:
+        output_path = Path(args.output)
+        # If only filename provided (no path), put in Downloads
+        if not output_path.parent.parts:
+            output_path = get_default_output_path(output_path.name)
 
-    merger = MarkdownMerger()
-    merged = merger.merge(md_blocks, header=args.title)
-    merger.export(merged, Path(args.output))
+    try:
+        settings = ConversionSettings(
+            ocr=not args.no_ocr,
+            languages=args.languages or ["en"],
+        )
+        converter = DoclingMarkdownConverter(settings=settings)
+        with ThreadPoolExecutor(max_workers=args.threads) as pool:
+            md_blocks = pool.submit(converter.to_markdown, paths).result()
+
+        merger = MarkdownMerger()
+        merged = merger.merge(md_blocks, header=args.title)
+        merger.export(merged, output_path)
+        
+        # Show success notification
+        show_completion_dialog(output_path, success=True)
+        
+    except Exception as e:
+        LOGGER.error(f"Conversion failed: {e}")
+        show_completion_dialog(output_path, success=False)
+        sys.exit(1)
 
 
 if __name__ == "__main__":  # pragma: no cover
