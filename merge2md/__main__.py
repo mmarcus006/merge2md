@@ -28,9 +28,16 @@ LOGGER = logging.getLogger(__name__)
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="merge2md",
-        description="Batch-convert files to Markdown and merge into one doc/PDF.",
+        description="Batch-convert files to Markdown and merge into one doc/PDF. "
+                    "Supports PDF, Word (DOCX), PowerPoint (PPTX), HTML, CSV, "
+                    "Markdown, AsciiDoc, and image files.",
     )
-    ap.add_argument("files", nargs="+", help="One or more files or glob patterns")
+    ap.add_argument(
+        "files", 
+        nargs="+", 
+        help="One or more files or glob patterns. Supported formats: "
+             "PDF, DOCX, PPTX, HTML, CSV, MD, AsciiDoc, images (PNG, JPG, etc.)"
+    )
     ap.add_argument("-o", "--output", default="merged.md", help="Output path")
     ap.add_argument("--title", help="Optional H1 title in the merged file")
     ap.add_argument("--threads", type=int, default=4, help="Parallel workers")

@@ -47,12 +47,12 @@ class MarkdownMerger:
         str
             Single Markdown document.
         """
-        if not md_blocks:  # guard clause
-            return ""
-
         merged: list[str] = []
         if header:
             merged.append(f"# {header}")
+
+        if not md_blocks:  # guard clause
+            return self.SEP.join(merged) if merged else ""
 
         merged.extend(block.strip() for block in md_blocks)
         return self.SEP.join(merged)

@@ -9,11 +9,15 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Sequence, Optional, Dict, Any
 
 from docling.document_converter import DocumentConverter
-from docling.ocr.easyocr import EasyOcrOptions
-from docling.core.errors import DoclingConversionError
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions, EasyOcrOptions
+from docling.document_converter import PdfFormatOption, WordFormatOption
+from docling.pipeline.simple_pipeline import SimplePipeline
+from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +29,27 @@ class ConversionSettings:
     ocr: bool = True
     languages: Sequence[str] = field(default_factory=lambda: ["en"])
     dpi: int = 300  # Higher dpi improves OCR but slows conversion.
-    # Add more Docling options as needed (table model, layout model, …).
+    # Supported formats - all formats that Docling can handle
+    allowed_formats: List[InputFormat] = field(default_factory=lambda: [
+        InputFormat.PDF,
+        InputFormat.IMAGE,
+        InputFormat.DOCX,
+        InputFormat.HTML,
+        InputFormat.PPTX,
+        InputFormat.ASCIIDOC,
+        InputFormat.CSV,
+        InputFormat.MD,
+    ])
 
-    def to_ocr_options(self) -> EasyOcrOptions | None:
-        """Translate settings to Docling's `EasyOcrOptions`."""
-        if not self.ocr:
-            return None
-        return EasyOcrOptions(languages=list(self.languages), dpi=self.dpi)
+    def to_pipeline_options(self) -> PdfPipelineOptions:
+        """Create pipeline options with OCR settings."""
+        pipeline_options = PdfPipelineOptions()
+        pipeline_options.do_ocr = self.ocr
+        if self.ocr:
+            pipeline_options.ocr_options = EasyOcrOptions(
+                lang=list(self.languages)
+            )
+        return pipeline_options
 
 
 class DoclingMarkdownConverter:
@@ -46,8 +64,26 @@ class DoclingMarkdownConverter:
 
     def __init__(self, settings: ConversionSettings | None = None) -> None:
         self.settings = settings or ConversionSettings()
+        
+        # Create format options for different file types
+        format_options: Dict[InputFormat, Any] = {}
+        
+        # PDF format with OCR options
+        format_options[InputFormat.PDF] = PdfFormatOption(
+            pipeline_cls=StandardPdfPipeline,
+            backend=PyPdfiumDocumentBackend,
+            pipeline_options=self.settings.to_pipeline_options()
+        )
+        
+        # Word format with simple pipeline
+        format_options[InputFormat.DOCX] = WordFormatOption(
+            pipeline_cls=SimplePipeline
+        )
+        
+        # Create converter with all supported formats
         self._converter = DocumentConverter(
-            ocr_options=self.settings.to_ocr_options()
+            allowed_formats=self.settings.allowed_formats,
+            format_options=format_options
         )
 
     # --------------------------------------------------------------------- #
@@ -73,8 +109,15 @@ class DoclingMarkdownConverter:
 
             try:
                 logger.info("Converting %s …", path.name)
-                md_blocks.append(self._converter.convert_to_markdown(path).content)
-            except DoclingConversionError as exc:
+                # Convert document
+                result = self._converter.convert(str(path))
+                # Export to markdown
+                if result and result.document:
+                    md_content = result.document.export_to_markdown()
+                    md_blocks.append(md_content)
+                else:
+                    logger.error("No document content for %s", path)
+            except Exception as exc:
                 logger.error("Docling failed on %s (%s)", path, exc)
 
         return md_blocks
