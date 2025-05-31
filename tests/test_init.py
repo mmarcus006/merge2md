@@ -134,5 +134,62 @@ class TestPublicAPI:
             InputFormat.MD,
         ]
         for fmt in expected_formats:
-            assert fmt in settings.allowed_formats 
- 
+            assert fmt in settings.allowed_formats
+    
+
+    
+    @patch('merge2md.converter.DocumentConverter')
+    @patch('merge2md.__init__.show_completion_dialog')
+    def test_convert_and_merge_filename_only(self, mock_dialog, mock_converter_class, temp_dir):
+        """Test convert_and_merge with filename only (no path)."""
+        # Setup mock
+        mock_converter = Mock()
+        mock_converter_class.return_value = mock_converter
+        mock_converter.convert.return_value = Mock(
+            document=Mock(export_to_markdown=Mock(return_value="# Converted"))
+        )
+        
+        files = [temp_dir / "test.pdf"]
+        
+        # Call with just filename (no path) - use .md to avoid PDF conversion in test
+        result = convert_and_merge(files, Path("output.md"))
+        
+        # Should use Downloads folder
+        assert result.parent == Path.home() / "Downloads"
+        # Name might have number suffix if file exists
+        assert result.name.startswith("output") and result.name.endswith(".md")
+    
+    @patch('merge2md.converter.DocumentConverter')
+    @patch('merge2md.__init__.show_completion_dialog')
+    def test_convert_and_merge_no_notification(self, mock_dialog, mock_converter_class, temp_dir):
+        """Test convert_and_merge with notification disabled."""
+        # Setup mock
+        mock_converter = Mock()
+        mock_converter_class.return_value = mock_converter
+        mock_converter.convert.return_value = Mock(
+            document=Mock(export_to_markdown=Mock(return_value="# Converted"))
+        )
+        
+        files = [temp_dir / "test.pdf"]
+        output = temp_dir / "output.md"
+        
+        # Call with notification disabled
+        result = convert_and_merge(files, output, show_notification=False)
+        
+        # Should not show notification
+        mock_dialog.assert_not_called()
+    
+
+    
+    def test_get_default_output_path_import(self):
+        """Test that get_default_output_path is available."""
+        from merge2md import get_default_output_path
+        
+        path = get_default_output_path("test.md")
+        assert path.parent == Path.home() / "Downloads"
+        assert path.name.startswith("test") and path.name.endswith(".md")
+    
+    def test_show_completion_dialog_import(self):
+        """Test that show_completion_dialog is available."""
+        from merge2md import show_completion_dialog
+        assert callable(show_completion_dialog) 

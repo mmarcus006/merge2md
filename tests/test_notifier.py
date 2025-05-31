@@ -120,5 +120,6 @@ class TestNotifier:
         for ext in [".md", ".pdf", ".txt", ".html"]:
             filename = f"output{ext}"
             path = get_default_output_path(filename)
-            assert path.name == filename
+            # May have number suffix if file exists
+            assert path.name.startswith("output") and path.name.endswith(ext)
             assert path.suffix == ext 

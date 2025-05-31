@@ -10,6 +10,8 @@ A powerful tool to batch-convert various document formats to Markdown and merge 
 - **Natural sorting**: Files are processed in natural order (e.g., file1, file2, file10)
 - **Flexible output**: Export as Markdown (.md) or PDF (.pdf)
 - **Customizable**: Configure OCR languages, DPI settings, and more
+- **macOS notifications**: Get a popup notification when conversion completes with a button to open the file in Finder
+- **Smart defaults**: Output files automatically save to your Downloads folder if no path is specified
 
 ## Supported File Formats
 
@@ -40,9 +42,14 @@ pip install -e .
 
 ### Command Line
 
-Basic usage:
+Basic usage (saves to Downloads folder):
 ```bash
-python -m merge2md document1.pdf document2.docx -o merged.md
+python -m merge2md document1.pdf document2.docx
+```
+
+Specify output location:
+```bash
+python -m merge2md document1.pdf document2.docx -o /path/to/merged.md
 ```
 
 Convert multiple file types and export as PDF:
@@ -103,11 +110,19 @@ for md in markdown_blocks:
 
 ### Command Line Options
 
-- `-o, --output`: Output file path (default: merged.md)
+- `-o, --output`: Output file path (default: merged.md in Downloads folder)
 - `--title`: Add a title to the merged document
 - `--threads`: Number of parallel workers (default: 4)
 - `--lang`: OCR language (can be specified multiple times)
 - `--no-ocr`: Disable OCR processing
+
+### macOS Notifications
+
+When running on macOS, you'll get a popup notification when the conversion completes:
+- Click "OK" to dismiss
+- Click "Open in Finder" to reveal the output file
+
+The notification works in both success and failure cases, helping you know when the process is done.
 
 ## Examples
 

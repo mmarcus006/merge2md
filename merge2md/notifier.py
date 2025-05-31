@@ -41,23 +41,35 @@ def show_completion_dialog(output_path: Path, success: bool = True) -> None:
             default_button = 1
         
         # Build AppleScript command
-        script = f'''
-        tell application "System Events"
-            activate
-            set theResult to display dialog "{message}" ¬
-                with title "{title}" ¬
-                buttons {buttons} ¬
-                default button {default_button} ¬
-                with icon note
-            
-            if button returned of theResult is "Open in Finder" then
-                tell application "Finder"
-                    activate
-                    reveal POSIX file "{output_path}"
-                end tell
-            end if
-        end tell
-        '''
+        if success:
+            script = f'''
+            tell application "System Events"
+                activate
+                set theResult to display dialog "{message}" ¬
+                    with title "{title}" ¬
+                    buttons {buttons} ¬
+                    default button {default_button} ¬
+                    with icon note
+                
+                if button returned of theResult is "Open in Finder" then
+                    tell application "Finder"
+                        activate
+                        reveal POSIX file "{output_path}"
+                    end tell
+                end if
+            end tell
+            '''
+        else:
+            script = f'''
+            tell application "System Events"
+                activate
+                display dialog "{message}" ¬
+                    with title "{title}" ¬
+                    buttons {buttons} ¬
+                    default button {default_button} ¬
+                    with icon note
+            end tell
+            '''
         
         # Execute AppleScript
         subprocess.run(
